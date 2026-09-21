@@ -9,9 +9,9 @@
 class MatchingEngine final {
 private:
   using OrderIndex = std::unordered_map<OrderId, Order *>;
-  OrderPool<10'000> order_pool_;
-  OrderBook order_book_;
-  OrderIndex order_index_;
+  OrderPool<10'000> pool_;
+  OrderBook book_;
+  OrderIndex index_;
 
 public:
   MatchingEngine(const MatchingEngine &rhs) = delete;

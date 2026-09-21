@@ -22,16 +22,21 @@
 template <std::size_t N> class OrderPool final {
 private:
   std::vector<Order> orders_{N, Order{}};
-  Order *free_head_{};
+  Order *head_{};
   std::size_t available_{N};
 
 public:
   constexpr explicit OrderPool() {
     for (size_t i{}; i < N; ++i) {
-      orders_[i].next = free_head_;
-      free_head_ = &orders_[i];
+      orders_[i].next = head_;
+      head_ = &orders_[i];
     }
   }
+
+  OrderPool(const OrderPool &rhs) = delete;
+  OrderPool &operator=(const OrderPool &rhs) = delete;
+  OrderPool(OrderPool &&rhs) = delete;
+  OrderPool &operator=(OrderPool &&rhs) = delete;
 
   [[nodiscard]] constexpr std::size_t capacity() const noexcept { return N; }
   [[nodiscard]] constexpr std::size_t available() const noexcept {
@@ -39,25 +44,20 @@ public:
   }
 
   [[nodiscard]] constexpr Order *try_allocate() noexcept {
-    if (!free_head_)
+    if (!head_)
       return nullptr;
     --available_;
-    Order *free_order = free_head_;
-    free_head_ = free_order->next;
-    free_order->next = nullptr;
-    return free_order;
+    Order *order = head_;
+    head_ = order->next;
+    order->next = nullptr;
+    return order;
   }
 
   // precondition: order was allocated by this pool and removed from book
   constexpr void deallocate(Order &order) noexcept {
     ++available_;
     order = Order{};
-    order.next = free_head_;
-    free_head_ = &order;
+    order.next = head_;
+    head_ = &order;
   }
-
-  OrderPool(const OrderPool &rhs) = delete;
-  OrderPool &operator=(const OrderPool &rhs) = delete;
-  OrderPool(OrderPool &&rhs) = delete;
-  OrderPool &operator=(OrderPool &&rhs) = delete;
 };
