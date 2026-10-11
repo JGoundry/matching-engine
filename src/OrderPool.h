@@ -22,11 +22,12 @@
 template <std::size_t N> class OrderPool final {
 private:
   std::vector<Order> orders_{N, Order{}};
-  Order *head_{};
+  Order *head_{}; // free list
   std::size_t available_{N};
 
 public:
   constexpr explicit OrderPool() {
+    // link orders into free list starting at head_
     for (size_t i{}; i < N; ++i) {
       orders_[i].next = head_;
       head_ = &orders_[i];
@@ -61,3 +62,11 @@ public:
     head_ = &order;
   }
 };
+static_assert(!std::is_copy_constructible_v<OrderPool<1>>,
+              "OrderPool must not be copied.");
+static_assert(!std::is_copy_assignable_v<OrderPool<1>>,
+              "OrderPool must not be copied.");
+static_assert(!std::is_move_assignable_v<OrderPool<1>>,
+              "OrderPool must not be moved.");
+static_assert(!std::is_move_constructible_v<OrderPool<1>>,
+              "OrderPool must not be moved.");

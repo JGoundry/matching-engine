@@ -3,7 +3,7 @@
 #include "OrderPool.h"
 
 // TODO: GTest template type tests to test different size of array
-//
+
 namespace testing {
 
 TEST(OrderPoolTest, DefaultTest) {

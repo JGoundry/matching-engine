@@ -4,13 +4,14 @@
 #include "OrderBook.h"
 #include "OrderPool.h"
 
+#include <type_traits>
 #include <unordered_map>
 
 class MatchingEngine final {
 private:
   using OrderIndex = std::unordered_map<OrderId, Order *>;
-  OrderPool<10'000> pool_;
   OrderBook book_;
+  OrderPool<10'000> pool_;
   OrderIndex index_;
 
 public:
@@ -18,5 +19,21 @@ public:
   MatchingEngine &operator=(const MatchingEngine &rhs) = delete;
   MatchingEngine(MatchingEngine &&rhs) = delete;
   MatchingEngine &operator=(MatchingEngine &&rhs) = delete;
-  OutboundResponse process(const InboundCommand &cmd) { return {}; }
+
+  // TODO Upgrade ingestion to read from a shared lock free queue instead of
+  //      using this function
+  [[nodiscard]] OutboundResponse process(const InboundCommand &cmd);
+
+private:
+  [[nodiscard]] OutboundResponse cancel_order(OrderId id);
+  [[nodiscard]] OutboundResponse limit_order(const Order &order, Side side);
+  [[nodiscard]] OutboundResponse market_order(const Order &order, Side side);
 };
+static_assert(!std::is_copy_constructible_v<MatchingEngine>,
+              "MatchingEngine must not be copied.");
+static_assert(!std::is_copy_assignable_v<MatchingEngine>,
+              "MatchingEngine must not be copied.");
+static_assert(!std::is_move_assignable_v<MatchingEngine>,
+              "MatchingEngine must not be moved.");
+static_assert(!std::is_move_constructible_v<MatchingEngine>,
+              "MatchingEngine must not be moved.");
