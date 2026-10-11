@@ -14,16 +14,39 @@ enum class TimeInForce : uint8_t {
 
 using OrderId = uint64_t;
 using Quantity = uint64_t;
-using Price = uint64_t;
+using Price = uint64_t; // explicitly not doing negative prices
+
+/**
+ * @brief A unique order in MatchingEngine order properties and intrusive
+ *        singly linked list.
+ *
+ * Aligned to 32 byte for exactly 2 objects on standard 64 bit dcache line.
+ *
+ * @see MatchingEngine OrderPool, OrderBook, PriceLevel
+ */
+struct alignas(32) Order final {
+  OrderId id;
+  Quantity qty;
+  Price price;
+  Order *next;
+  // Doesnt include side or type currently
+  // Debating on wether to add or... let it be implied
+  // by the book and matching engine to save bytes
+};
+static_assert(sizeof(Order) == 32);
+static_assert(alignof(Order) == 32);
+static_assert(std::is_trivially_copyable_v<Order>);
+static_assert(std::is_trivially_destructible_v<Order>);
 
 class alignas(32) InboundCommand final {
 private:
-  OrderId id_;
-  CommandType commandType_;
-  OrderType orderType_;
-  Side side_;
-  Price price_;
-  Quantity qty_;
+  OrderId id_;                // 8
+  Price price_;               // 8
+  Quantity qty_;              // 8
+  CommandType commandType_;   // 1
+  Side side_;                 // 1
+  OrderType orderType_;       // 1
+  TimeInForce time_in_force_; // 1
 
   constexpr explicit InboundCommand(OrderId id, CommandType commandType,
                                     OrderType orderType, Side side, Price price,
@@ -61,17 +84,3 @@ struct OutboundResponse {
 static_assert(sizeof(OutboundResponse) == 1);
 static_assert(alignof(OutboundResponse) == 1);
 static_assert(std::is_trivially_copyable_v<OutboundResponse>);
-
-struct alignas(32) Order final {
-  OrderId id;
-  Quantity qty;
-  Price price;
-  Order *next;
-  // Doesnt include side or type currently
-  // Debating on wether to add or... let it be implied
-  // by the book and matching engine to save bytes
-};
-static_assert(sizeof(Order) == 32);
-static_assert(alignof(Order) == 32);
-static_assert(std::is_trivially_copyable_v<Order>);
-static_assert(std::is_trivially_destructible_v<Order>);
