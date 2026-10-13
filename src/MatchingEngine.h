@@ -1,8 +1,10 @@
 #pragma once
 
+#include "InboundCommand.h"
 #include "Order.h"
 #include "OrderBook.h"
 #include "OrderPool.h"
+#include "OutboundResponse.h"
 
 #include <type_traits>
 #include <unordered_map>
@@ -10,8 +12,8 @@
 class MatchingEngine final {
 private:
   using OrderIndex = std::unordered_map<OrderId, Order *>;
-  OrderBook book_;
-  OrderPool<10'000> pool_;
+  OrderBook<10'000> book_;
+  OrderPool<20'000> pool_;
   OrderIndex index_;
 
 public:

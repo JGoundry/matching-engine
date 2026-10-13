@@ -30,17 +30,17 @@ OutboundResponse MatchingEngine::process(const InboundCommand &cmd) {
   return market_order(*order, cmd.side());
 }
 
-OutboundResponse MatchingEngine::cancelOrder(OrderId id) {
+OutboundResponse MatchingEngine::cancel_order(OrderId id) {
   // book_.cancelOrder(id);
   return {};
 }
 
-OutboundResponse MatchingEngine::limitOrder(const Order &order, Side side) {
-  if (book_.is_spread_crossed(order.price, side)) { // marketable limit order
-  }
+OutboundResponse MatchingEngine::limit_order(const Order &order, Side side) {
+  // if (book_.is_spread_crossed(order.price, side)) { // marketable limit order
+  // }
   return {};
 }
 
-OutboundResponse MatchingEngine::marketOrder(const Order &order, Side side) {
+OutboundResponse MatchingEngine::market_order(const Order &order, Side side) {
   return {};
 }

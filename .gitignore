@@ -3,3 +3,5 @@ a.out
 .cache/
 build/
 Testing/
+vcpkg_installed/
+vcpkg-manifest-install.log
