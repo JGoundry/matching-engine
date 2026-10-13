@@ -14,3 +14,5 @@ add_subdirectory(src)
 if (BUILD_TESTING)
   add_subdirectory(src/test)
 endif()
+
+add_subdirectory(docs)
