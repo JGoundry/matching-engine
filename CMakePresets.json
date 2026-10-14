@@ -49,5 +49,68 @@
       "name": "release-ninja-linux-x64",
       "configurePreset": "release-ninja-linux-x64"
     }
+  ],
+  "testPresets": [
+    {
+      "name": "base",
+      "hidden": true,
+      "output": {
+        "shortProgress": true,
+        "outputOnFailure": true
+      },
+      "execution": {
+        "noTestsAction": "error",
+        "stopOnFailure": true,
+        "jobs": 0
+      }
+    },
+    {
+      "name": "debug-ninja-linux-x64",
+      "configurePreset": "debug-ninja-linux-x64",
+      "inherits": ["base"]
+    },
+    {
+      "name": "release-ninja-linux-x64",
+      "configurePreset": "release-ninja-linux-x64",
+      "inherits": ["base"]
+    }
+  ],
+  "workflowPresets": [
+    {
+      "name": "ci-release-ninja-linux-x64",
+      "displayName": "Release Workflow",
+      "steps": [
+        {
+          "type": "configure",
+          "name": "release-ninja-linux-x64"
+        },
+        {
+          "type": "build",
+          "name": "release-ninja-linux-x64"
+        },
+        {
+          "type": "test",
+          "name": "release-ninja-linux-x64"
+        }
+      ]
+    },
+    {
+      "name": "ci-debug-ninja-linux-x64",
+      "displayName": "Debug Workflow",
+      "steps": [
+        {
+          "type": "configure",
+          "name": "debug-ninja-linux-x64"
+        },
+        {
+          "type": "build",
+          "name": "debug-ninja-linux-x64"
+        },
+        {
+          "type": "test",
+          "name": "debug-ninja-linux-x64"
+        }
+      ]
+    }
   ]
 }
