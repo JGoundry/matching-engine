@@ -1,0 +1,53 @@
+{
+  "version": 6,
+  "cmakeMinimumRequired": {
+    "major": 3,
+    "minor": 25,
+    "patch": 0
+  },
+  "configurePresets": [
+    {
+      "name": "base-ninja",
+      "hidden": true,
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/build/${presetName}",
+      "cacheVariables": {
+        "CMAKE_TOOLCHAIN_FILE": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake",
+        "CMAKE_EXPORT_COMPILE_COMMANDS": "ON",
+        "BUILD_TESTING": "ON"
+      }
+    },
+    {
+      "name": "debug-ninja-linux-x64",
+      "displayName": "Debug Ninja Linux x64",
+      "description": "Debug config using Ninja generator for Linux x64",
+      "inherits": ["base-ninja"],
+      "cacheVariables": {
+        "VCPKG_TARGET_TRIPLET": "x64-linux",
+        "CMAKE_BUILD_TYPE": "Debug"
+      }
+    },
+    {
+      "name": "release-ninja-linux-x64",
+      "displayName": "Release Ninja Linux x64",
+      "description": "Optimised release config using Ninja generator for Linux x64",
+      "inherits": ["base-ninja"],
+      "cacheVariables": {
+        "VCPKG_TARGET_TRIPLET": "x64-linux",
+        "CMAKE_BUILD_TYPE": "Release",
+        "CMAKE_INTERPROCEDURAL_OPTIMIZATION": "ON",
+        "CMAKE_CXX_FLAGS": "-march=native"
+      }
+    }
+  ],
+  "buildPresets": [
+    {
+      "name": "debug-ninja-linux-x64",
+      "configurePreset": "debug-ninja-linux-x64"
+    },
+    {
+      "name": "release-ninja-linux-x64",
+      "configurePreset": "release-ninja-linux-x64"
+    }
+  ]
+}
