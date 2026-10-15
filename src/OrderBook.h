@@ -8,11 +8,10 @@
 
 /**
  * @brief Holds limit orders in time priority (FIFO) for a specific price level
- *        of the OrderBook.
+ * of the `OrderBook`.
  *
+ * @par Alignment
  * Aligned to 32 byte for exactly 2 objects on standard 64 bit dcache line.
- *
- * @see OrderBook, Order
  */
 struct alignas(32) PriceLevel final {
   Price price;
@@ -26,6 +25,9 @@ static_assert(alignof(PriceLevel) == 32);
 /**
  * @brief Limit Order Book using price-time priority.
  * @tparam N Number of PriceLevel allocated per orderbook side
+ * @note Construction preallocates storage for `N` price levels per side.
+ * Implementations of mutating operations reject a new price level once
+ * that side reaches `N`; neither vector shall be grown.
  */
 template <size_t N> class OrderBook final {
 private:
@@ -40,10 +42,10 @@ public:
     bids_.reserve(N);
   }
 
-  OrderBook(const OrderBook &rhs) = delete;
-  OrderBook &operator=(const OrderBook &rhs) = delete;
-  OrderBook(OrderBook &&rhs) = delete;
-  OrderBook &operator=(OrderBook &&rhs) = delete;
+  OrderBook(const OrderBook &) = delete;
+  OrderBook &operator=(const OrderBook &) = delete;
+  OrderBook(OrderBook &&) = delete;
+  OrderBook &operator=(OrderBook &&) = delete;
 
   void add_resting(Order &order, Side side);
   void remove_resting(Order &order, Side side);

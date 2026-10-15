@@ -4,11 +4,11 @@
 #include <cassert>
 
 OutboundResponse MatchingEngine::process(const InboundCommand &cmd) {
-  if (cmd.commandType() == CommandType::Cancel) {
+  if (cmd.command_type() == CommandType::Cancel) {
     return cancel_order(cmd.id());
   }
 
-  assert(cmd.commandType() == CommandType::New);
+  assert(cmd.command_type() == CommandType::New);
 
   // Populate and dispatch pre-allocated Order
 
@@ -20,18 +20,18 @@ OutboundResponse MatchingEngine::process(const InboundCommand &cmd) {
   order->id = cmd.id();
   order->qty = cmd.qty();
 
-  if (cmd.orderType() == OrderType::LimitOrder) {
+  if (cmd.order_type() == OrderType::LimitOrder) {
     order->price = cmd.price();
     return limit_order(*order, cmd.side());
   }
 
-  assert(cmd.orderType() == OrderType::MarketOrder);
+  assert(cmd.order_type() == OrderType::MarketOrder);
 
   return market_order(*order, cmd.side());
 }
 
 OutboundResponse MatchingEngine::cancel_order(OrderId id) {
-  // book_.cancelOrder(id);
+  // book_.cancel_order(id);
   return {};
 }
 

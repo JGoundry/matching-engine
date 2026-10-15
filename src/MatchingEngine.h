@@ -9,21 +9,30 @@
 #include <type_traits>
 #include <unordered_map>
 
+/**
+ * @brief Single-writer matching shard with stable identity for its lifetime.
+ *
+ * Construct and preallocate this type before routing commands to it. Calls to
+ * `process()` must be serialized by its owning shard or worker thread.
+ */
 class MatchingEngine final {
 private:
-  using OrderIndex = std::unordered_map<OrderId, Order *>;
+  using OrderIndex = std::unordered_map<OrderId, Order&>;
   OrderBook<10'000> book_;
   OrderPool<20'000> pool_;
   OrderIndex index_;
 
 public:
-  MatchingEngine(const MatchingEngine &rhs) = delete;
-  MatchingEngine &operator=(const MatchingEngine &rhs) = delete;
-  MatchingEngine(MatchingEngine &&rhs) = delete;
-  MatchingEngine &operator=(MatchingEngine &&rhs) = delete;
+  MatchingEngine() {
+    index_.reserve(pool_.capacity());
+  }
 
-  // TODO Upgrade ingestion to read from a shared lock free queue instead of
-  //      using this function
+  MatchingEngine(const MatchingEngine &) = delete;
+  MatchingEngine &operator=(const MatchingEngine &) = delete;
+  MatchingEngine(MatchingEngine &&) = delete;
+  MatchingEngine &operator=(MatchingEngine &&) = delete;
+
+  /// @todo Upgrade InboundCommand ingestion to read from a shared lock free queue.
   [[nodiscard]] OutboundResponse process(const InboundCommand &cmd);
 
 private:

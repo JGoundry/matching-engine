@@ -1,8 +1,7 @@
 #pragma once
 
 /**
- * @brief Response returned from MatchingEngine on receiving InboundCommand.
- * @todo Implement.
- * @see MatchingEngine, InboundCommand
+ * @brief Response returned from `MatchingEngine` on receiving `InboundCommand`.
+ * @todo Implement `OutboundResponse`.
  */
 struct OutboundResponse {};
