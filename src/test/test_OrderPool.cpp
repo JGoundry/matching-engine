@@ -8,7 +8,7 @@ namespace {
 // TODO: Use template type test to test with N = 0, 10, 100
 TEST(OrderPoolTest, DefaultUsage) {
   constexpr std::size_t N = 10;
-  OrderPool<N> pool{};
+  OrderPool<N> pool;
 
   ASSERT_TRUE(pool.capacity() == N);
   ASSERT_TRUE(pool.available() == N);
@@ -25,7 +25,7 @@ TEST(OrderPoolTest, DefaultUsage) {
 }
 
 TEST(OrderPoolTest, AllocatedOrderIsEmpty) {
-  OrderPool<1> pool{};
+  OrderPool<1> pool;
 
   // Allocate order and check it is empty
   Order* order = pool.try_allocate();
@@ -45,6 +45,14 @@ TEST(OrderPoolTest, AllocatedOrderIsEmpty) {
   order = pool.try_allocate();
   ASSERT_TRUE(order != nullptr);
   ASSERT_TRUE(*order == Order{});
+}
+
+TEST(OrderPoolTest, OrderPoolIsLIFO) {
+  OrderPool<10> pool;
+  Order* order = pool.try_allocate();
+  ASSERT_TRUE(order != nullptr);
+  pool.deallocate(*order);
+  ASSERT_TRUE(order == pool.try_allocate());
 }
 
 }

@@ -11,6 +11,7 @@
  * @brief Fixed-capacity pool of preallocated `Order` objects.
  * @tparam N Number of `Order` objects in the pool.
  * @note `OrderPool` is neither copyable nor movable.
+ * @note `OrderPool` is LIFO for improved caching.
  *
  * @par Thread safety
  * This type is not thread-safe and provides no thread-safety guarantees.
