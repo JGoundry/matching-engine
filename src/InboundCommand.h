@@ -24,17 +24,22 @@ private:
 
 public:
   /// @brief Factory function for market order command
-  /// @note Valid TimeInForce: IOC, FOK
   [[nodiscard]] static constexpr InboundCommand market(OrderId id, Quantity qty,
-                                                       Side side, TimeInForce tif) noexcept;
+                                                       Side side) noexcept {
+    return InboundCommand(id, 0, qty, CommandType::New, OrderType::MarketOrder, side, TimeInForce::None);
+  }
 
   /// @brief Factory function for limit order command
-  /// @note Valid TimeInForce: GTC, IOC, FOK
+  /// @pre `tif` must not be `None`
   [[nodiscard]] static constexpr InboundCommand
-  limit(OrderId id, Price price, Quantity qty, Side side, TimeInForce tif) noexcept;
+  limit(OrderId id, Price price, Quantity qty, Side side, TimeInForce tif) noexcept {
+    return InboundCommand(id, price, qty, CommandType::New, OrderType::LimitOrder, side, tif);
+  }
 
   /// @brief Factory function for cancel order command
-  [[nodiscard]] static constexpr InboundCommand cancel(OrderId id) noexcept;
+  [[nodiscard]] static constexpr InboundCommand cancel(OrderId id) noexcept {
+    return InboundCommand(id, 0, 0, CommandType::Cancel, OrderType::None, Side::None, TimeInForce::None);
+  }
 
   /// @name Accessors
   /// @{

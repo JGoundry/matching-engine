@@ -8,8 +8,11 @@ target_sources(matching-engine
     FILE_SET HEADERS
     BASE_DIRS .
     FILES
-      MatchingEngine.h
-      OrderBook.h
-      OrderPool.h
+      Types.h
       Order.h
+      OrderPool.h
+      OrderBook.h
+      InboundCommand.h
+      OutboundResponse.h
+      MatchingEngine.h
 )

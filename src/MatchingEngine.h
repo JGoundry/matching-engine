@@ -17,7 +17,11 @@
  */
 class MatchingEngine final {
 private:
-  using OrderIndex = std::unordered_map<OrderId, Order&>;
+  struct IndexKey final {
+    Order& order;
+    Side side; //< Kept of the `Order` to keep at 32 bytes
+  };
+  using OrderIndex = std::unordered_map<OrderId, IndexKey>;
   OrderBook<10'000> book_;
   OrderPool<20'000> pool_;
   OrderIndex index_;
