@@ -188,5 +188,41 @@ INSTANTIATE_TEST_SUITE_P(
   side_name
 );
 
+TEST(OrderBookBestBidLevel, ReturnsBestLevelWhenMultipleInBook) {
+  OrderBook<3> book;
+  const Side side = Side::Buy;
+  Order first_order = create_order(0, 101, 100);
+  Order second_order = create_order(1, 200, 100); // best bid
+  Order third_order = create_order(2, 100, 100);
+  ASSERT_TRUE(book.try_add_resting(first_order, side));
+  ASSERT_TRUE(book.try_add_resting(second_order, side));
+  ASSERT_TRUE(book.try_add_resting(third_order, side));
+  ASSERT_TRUE(book.is_resting(first_order, side));
+  ASSERT_TRUE(book.is_resting(second_order, side));
+  ASSERT_TRUE(book.is_resting(third_order, side));
+
+  const auto* level = book.best_bid_level();
+  ASSERT_THAT(level, ::testing::NotNull());
+  ASSERT_EQ(level->price, second_order.price);
+}
+
+TEST(OrderBookBestAskLevel, ReturnsBestLevelWhenMultipleInBook) {
+  OrderBook<3> book;
+  const Side side = Side::Sell;
+  Order first_order = create_order(0, 101, 100);
+  Order second_order = create_order(1, 10, 100); // best ask
+  Order third_order = create_order(2, 100, 100);
+  ASSERT_TRUE(book.try_add_resting(first_order, side));
+  ASSERT_TRUE(book.try_add_resting(second_order, side));
+  ASSERT_TRUE(book.try_add_resting(third_order, side));
+  ASSERT_TRUE(book.is_resting(first_order, side));
+  ASSERT_TRUE(book.is_resting(second_order, side));
+  ASSERT_TRUE(book.is_resting(third_order, side));
+
+  const auto* level = book.best_ask_level();
+  ASSERT_THAT(level, ::testing::NotNull());
+  ASSERT_EQ(level->price, second_order.price);
+}
+
 }
 }
