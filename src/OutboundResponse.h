@@ -3,7 +3,4 @@
 /**
  * @brief Response returned from `MatchingEngine` on receiving `InboundCommand`.
  */
-enum class OutboundResponse : std::uint8_t {
-    Accepted,
-    Rejected
-};
+enum class OutboundResponse : std::uint8_t { Accepted, Rejected };

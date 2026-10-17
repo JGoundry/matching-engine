@@ -2,8 +2,8 @@
 
 #include "OrderPool.h"
 
-#include <array>
 #include <algorithm>
+#include <array>
 #include <cstddef>
 
 namespace test {
@@ -26,9 +26,10 @@ TEST(OrderPoolTest, AllocatesUniqueOrdersUpToCapacityAndRestoresAvailability) {
 
   // Check we can allocated N orders succesfully and available updates.
   for (size_t i{}; i < N; ++i) {
-    Order *order = pool.try_allocate();
+    Order* order = pool.try_allocate();
     ASSERT_THAT(order, ::testing::NotNull());
-    ASSERT_EQ(pool.available(), N - i - 1) << "Available counter was not decremented after allocation.";
+    ASSERT_EQ(pool.available(), N - i - 1)
+        << "Available counter was not decremented after allocation.";
     orders[i] = order;
   }
 
@@ -39,7 +40,8 @@ TEST(OrderPoolTest, AllocatesUniqueOrdersUpToCapacityAndRestoresAvailability) {
 
   // Check orders are unique
   std::ranges::sort(orders);
-  ASSERT_EQ(std::ranges::adjacent_find(orders), orders.end()) << "OrderPool allocated the same order twice.";
+  ASSERT_EQ(std::ranges::adjacent_find(orders), orders.end())
+      << "OrderPool allocated the same order twice.";
 
   // Check deallocation
   for (size_t i{}; i < N; ++i) {
@@ -99,5 +101,5 @@ TEST(OrderPoolTest, DeathOnFreeOfOrderNotInPoolInDebug) {
   ASSERT_DEBUG_DEATH(pool.deallocate(order), "order does not belong to this pool");
 }
 
-}
-} // namespace testing
+} // namespace
+} // namespace test

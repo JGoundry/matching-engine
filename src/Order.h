@@ -15,8 +15,8 @@ struct alignas(32) Order final {
   OrderId id;
   Price price;
   Quantity remaining_qty;
-  Order *next;
-  bool operator==(const Order &) const = default;
+  Order* next;
+  bool operator==(const Order&) const = default;
 };
 static_assert(sizeof(Order) == 32);
 static_assert(alignof(Order) == 32);

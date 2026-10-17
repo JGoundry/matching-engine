@@ -2,8 +2,8 @@
 
 #include "Order.h"
 
-#include <cassert>
 #include <bitset>
+#include <cassert>
 #include <cstddef>
 #include <vector>
 
@@ -29,12 +29,11 @@
 template <size_t N> class OrderPool final {
 private:
   std::vector<Order> orders_{N, Order{}}; //< Preallocated orders
-  Order *head_{}; //< Head of the free list
-  size_t available_{N}; //< Number of available orders
+  Order* head_{};                         //< Head of the free list
+  size_t available_{N};                   //< Number of available orders
 #ifndef NDEBUG
   std::bitset<N> allocated_{}; //< Bitset showing values in `orders_` that have been allocated
-  [[nodiscard]] size_t index_of(const Order &order) const
-      noexcept {
+  [[nodiscard]] size_t index_of(const Order& order) const noexcept {
     for (size_t i{}; i < N; ++i) {
       if (&orders_[i] == &order)
         return i;
@@ -53,27 +52,25 @@ public:
     }
   }
 
-  OrderPool(const OrderPool &) = delete;
-  OrderPool &operator=(const OrderPool &) = delete;
-  OrderPool(OrderPool &&) = delete;
-  OrderPool &operator=(OrderPool &&) = delete;
+  OrderPool(const OrderPool&) = delete;
+  OrderPool& operator=(const OrderPool&) = delete;
+  OrderPool(OrderPool&&) = delete;
+  OrderPool& operator=(OrderPool&&) = delete;
 
   /// @brief Returns the total number of orders in the pool.
   [[nodiscard]] constexpr size_t capacity() const noexcept { return N; }
 
   /// @brief Returns the number of orders currently available for allocation.
-  [[nodiscard]] constexpr size_t available() const noexcept {
-    return available_;
-  }
+  [[nodiscard]] constexpr size_t available() const noexcept { return available_; }
 
   /// @brief Allocates an order from the pool if one is available.
   /// @return A pointer to the allocated order, or `nullptr` if the pool is
   /// exhausted.
-  [[nodiscard]] constexpr Order *try_allocate() noexcept {
+  [[nodiscard]] constexpr Order* try_allocate() noexcept {
     if (!head_)
       return nullptr;
     --available_;
-    Order *order = head_;
+    Order* order = head_;
     head_ = order->next;
     order->next = nullptr;
 #ifndef NDEBUG
@@ -88,11 +85,10 @@ public:
   /// @param order Order to return.
   /// @pre `order` was allocated by this pool and removed from every
   /// `OrderBook` and index.
-  constexpr void deallocate(Order &order) noexcept {
+  constexpr void deallocate(Order& order) noexcept {
 #ifndef NDEBUG
     const size_t index = index_of(order);
-    assert(allocated_.test(index) &&
-           "order was not allocated or was already deallocated");
+    assert(allocated_.test(index) && "order was not allocated or was already deallocated");
     allocated_.reset(index);
 #endif
     ++available_;
@@ -101,11 +97,7 @@ public:
     head_ = &order;
   }
 };
-static_assert(!std::is_copy_constructible_v<OrderPool<1>>,
-              "OrderPool must not be copied.");
-static_assert(!std::is_copy_assignable_v<OrderPool<1>>,
-              "OrderPool must not be copied.");
-static_assert(!std::is_move_assignable_v<OrderPool<1>>,
-              "OrderPool must not be moved.");
-static_assert(!std::is_move_constructible_v<OrderPool<1>>,
-              "OrderPool must not be moved.");
+static_assert(!std::is_copy_constructible_v<OrderPool<1>>, "OrderPool must not be copied.");
+static_assert(!std::is_copy_assignable_v<OrderPool<1>>, "OrderPool must not be copied.");
+static_assert(!std::is_move_assignable_v<OrderPool<1>>, "OrderPool must not be moved.");
+static_assert(!std::is_move_constructible_v<OrderPool<1>>, "OrderPool must not be moved.");
