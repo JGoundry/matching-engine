@@ -55,6 +55,7 @@ public:
   [[nodiscard]] bool try_add_resting(Order& order, Side side);
 
   /// @brief Reduces an order's remaining quantity.
+  /// @pre `side` is not Side::None
   /// @pre `reduction_qty > 0 && reduction_qty <= order.remaining_qty`.
   /// @pre `order` is currently linked into this book on `side`.
   /// @returns true if the reduction fully filled and unlinked `order`; false
@@ -132,6 +133,60 @@ template <size_t N> bool OrderBook<N>::try_add_resting(Order& order, Side side) 
                                  .remaining_qty = order.remaining_qty,
                                  .head = &order,
                                  .tail = &order});
+  }
+
+  return true;
+}
+
+/// @returns true if the reduction fully filled and unlinked `order`; false
+/// if `order` remains resting with positive remaining quantity.
+/// @note Removes the containing price level if `order` was its final member.
+template <size_t N>
+bool OrderBook<N>::reduce_resting(Order& order, Side side, Quantity reduction_qty) {
+  assert(side != Side::None && "side must not be Side::None");
+  assert(is_resting(order, side) && "order to be reduced must be resting in given side");
+  assert(reduction_qty > 0 && "reduction_qty must be greater than zero");
+  assert(order.remaining_qty >= reduction_qty &&
+         "order.remaining_qty must be greater than or equal to reduction amount");
+
+  // Find level
+  auto& levels = (side == Side::Buy ? bids_ : asks_);
+  const auto level_it =
+      (side == Side::Buy
+           ? std::ranges::lower_bound(levels, order.price, std::less{}, &PriceLevel::price)
+           : std::ranges::lower_bound(levels, order.price, std::greater{}, &PriceLevel::price));
+
+  assert(level_it != levels.end() && level_it->price == order.price);
+
+  order.remaining_qty -= reduction_qty;
+  level_it->remaining_qty -= reduction_qty;
+
+  if (order.remaining_qty != 0)
+    return false; // Order reduced but not fully filled
+
+  // Order is fully filled, find order and remove from list. Could be O(1) with a doubly linked
+  // list, but, Order is already 32 bytes, is acceptable for now :/
+
+  const bool is_head = level_it->head == &order;
+  const bool is_tail = level_it->tail == &order;
+
+  if (is_head && is_tail) {
+    levels.erase(level_it); // Only order at price level, delete level
+  } else if (is_head) {
+    level_it->head = order.next; // Make next order new head
+  } else {
+    // Find order before ours
+    Order* order_it = level_it->head;
+    while (order_it->next != &order) {
+      order_it = order_it->next;
+    }
+    assert(order_it->next == &order && "order should be found resting at this level");
+    if (is_tail) { // Set new tail
+      order_it->next = nullptr;
+      level_it->tail = order_it;
+    } else { // Unlink order
+      order_it->next = order.next;
+    }
   }
 
   return true;
