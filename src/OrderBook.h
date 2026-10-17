@@ -99,13 +99,13 @@ constexpr OrderBook<N>::OrderBook() {
 }
 
 template <size_t N>
-constexpr const typename OrderBook<N>::PriceLevel *
+constexpr const OrderBook<N>::PriceLevel *
 OrderBook<N>::best_bid_level() const noexcept {
   return bids_.empty() ? nullptr : &bids_.back();
 }
 
 template <size_t N>
-constexpr const typename OrderBook<N>::PriceLevel *
+constexpr const OrderBook<N>::PriceLevel *
 OrderBook<N>::best_ask_level() const noexcept {
   return asks_.empty() ? nullptr : &asks_.back();
 }
