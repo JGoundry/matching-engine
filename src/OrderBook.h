@@ -35,8 +35,9 @@ public:
   static_assert(alignof(PriceLevel) == 32);
 
 private:
-  std::vector<PriceLevel> asks_; //< sorted in descending order; `asks_.back()` is best ask
-  std::vector<PriceLevel> bids_; //< sorted in ascending order; `bids_.back()` is best bid
+  using PriceLevels = std::vector<PriceLevel>;
+  PriceLevels asks_; //< sorted in descending order; `asks_.back()` is best ask
+  PriceLevels bids_; //< sorted in ascending order; `bids_.back()` is best bid
 
 public:
   constexpr explicit OrderBook();
@@ -55,7 +56,6 @@ public:
   [[nodiscard]] bool try_add_resting(Order& order, Side side);
 
   /// @brief Reduces an order's remaining quantity.
-  /// @pre `side` is not Side::None
   /// @pre `reduction_qty > 0 && reduction_qty <= order.remaining_qty`.
   /// @pre `order` is currently linked into this book on `side`.
   /// @returns true if the reduction fully filled and unlinked `order`; false
@@ -99,6 +99,9 @@ public:
 
 private:
   [[nodiscard]] bool is_resting_anywhere(const Order& order) const noexcept;
+  [[nodiscard]] PriceLevels::iterator find_level_it(Price price, Side side);
+  [[nodiscard]] PriceLevels::const_iterator find_level_it(Price price, Side side) const;
+  void remove_order_from_level(PriceLevels& levels, PriceLevels::iterator level_it, Order& order);
 };
 
 template <size_t N> constexpr OrderBook<N>::OrderBook() {
@@ -112,27 +115,23 @@ template <size_t N> bool OrderBook<N>::try_add_resting(Order& order, Side side) 
   assert(!is_resting_anywhere(order) && "order must not be in book already");
 
   auto& levels = (side == Side::Buy ? bids_ : asks_);
-  const auto it =
-      (side == Side::Buy
-           ? std::ranges::lower_bound(levels, order.price, std::less{}, &PriceLevel::price)
-           : std::ranges::lower_bound(levels, order.price, std::greater{}, &PriceLevel::price));
+  const auto level_it = find_level_it(order.price, side);
 
-  const bool level_exists = it != levels.end() && it->price == order.price;
+  const bool level_exists = (level_it != levels.end() && level_it->price == order.price);
 
   if (!level_exists && levels.size() == N)
     return false;
 
   order.next = nullptr;
   if (level_exists) {
-    PriceLevel& level = *it;
-    level.tail->next = &order;
-    level.tail = &order;
-    level.remaining_qty += order.remaining_qty;
+    level_it->tail->next = &order;
+    level_it->tail = &order;
+    level_it->remaining_qty += order.remaining_qty;
   } else {
-    levels.insert(it, PriceLevel{.price = order.price,
-                                 .remaining_qty = order.remaining_qty,
-                                 .head = &order,
-                                 .tail = &order});
+    levels.insert(level_it, PriceLevel{.price = order.price,
+                                       .remaining_qty = order.remaining_qty,
+                                       .head = &order,
+                                       .tail = &order});
   }
 
   return true;
@@ -143,7 +142,6 @@ template <size_t N> bool OrderBook<N>::try_add_resting(Order& order, Side side) 
 /// @note Removes the containing price level if `order` was its final member.
 template <size_t N>
 bool OrderBook<N>::reduce_resting(Order& order, Side side, Quantity reduction_qty) {
-  assert(side != Side::None && "side must not be Side::None");
   assert(is_resting(order, side) && "order to be reduced must be resting in given side");
   assert(reduction_qty > 0 && "reduction_qty must be greater than zero");
   assert(order.remaining_qty >= reduction_qty &&
@@ -151,11 +149,7 @@ bool OrderBook<N>::reduce_resting(Order& order, Side side, Quantity reduction_qt
 
   // Find level
   auto& levels = (side == Side::Buy ? bids_ : asks_);
-  const auto level_it =
-      (side == Side::Buy
-           ? std::ranges::lower_bound(levels, order.price, std::less{}, &PriceLevel::price)
-           : std::ranges::lower_bound(levels, order.price, std::greater{}, &PriceLevel::price));
-
+  const auto level_it = find_level_it(order.price, side);
   assert(level_it != levels.end() && level_it->price == order.price);
 
   order.remaining_qty -= reduction_qty;
@@ -164,9 +158,82 @@ bool OrderBook<N>::reduce_resting(Order& order, Side side, Quantity reduction_qt
   if (order.remaining_qty != 0)
     return false; // Order reduced but not fully filled
 
-  // Order is fully filled, find order and remove from list. Could be O(1) with a doubly linked
-  // list, but, Order is already 32 bytes, is acceptable for now :/
+  // Order is fully filled, remove from list.
+  remove_order_from_level(levels, level_it, order);
 
+  return true;
+}
+
+/// @brief Unlinks `order` from specified side of book.
+/// @pre `order` is currently linked into this book on `side`.
+/// @note Removes the containing price level if it becomes empty. Does not
+/// deallocate `order`.
+template <size_t N> void OrderBook<N>::remove_resting(Order& order, Side side) {
+  assert(is_resting(order, side) && "order to be removed must be resting in given side");
+
+  // Find level
+  auto& levels = (side == Side::Buy ? bids_ : asks_);
+  const auto level_it = find_level_it(order.price, side);
+  assert(level_it != levels.end() && level_it->price == order.price);
+
+  remove_order_from_level(levels, level_it, order);
+}
+
+template <size_t N>
+constexpr const OrderBook<N>::PriceLevel* OrderBook<N>::best_bid_level() const noexcept {
+  return bids_.empty() ? nullptr : &bids_.back();
+}
+
+template <size_t N>
+constexpr const OrderBook<N>::PriceLevel* OrderBook<N>::best_ask_level() const noexcept {
+  return asks_.empty() ? nullptr : &asks_.back();
+}
+
+template <size_t N> bool OrderBook<N>::is_resting(const Order& order, Side side) const noexcept {
+  assert(side != Side::None && "side must not be Side::None");
+
+  const auto& levels = side == Side::Buy ? bids_ : asks_;
+  const auto level_it = find_level_it(order.price, side);
+
+  // Check a level at given order price exists
+  const bool level_exists = level_it != levels.end() && level_it->price == order.price;
+  if (!level_exists)
+    return false;
+
+  // Check if order exists at existing price level
+  Order* list_it = level_it->head;
+  while (list_it) {
+    if (list_it == &order)
+      return true; // found order
+    list_it = list_it->next;
+  }
+
+  return false;
+}
+
+template <size_t N> bool OrderBook<N>::is_resting_anywhere(const Order& order) const noexcept {
+  return is_resting(order, Side::Buy) || is_resting(order, Side::Sell);
+}
+
+template <size_t N>
+OrderBook<N>::PriceLevels::iterator OrderBook<N>::find_level_it(Price price, Side side) {
+  return side == Side::Buy
+             ? std::ranges::lower_bound(bids_, price, std::less{}, &PriceLevel::price)
+             : std::ranges::lower_bound(asks_, price, std::greater{}, &PriceLevel::price);
+}
+
+template <size_t N>
+OrderBook<N>::PriceLevels::const_iterator OrderBook<N>::find_level_it(Price price,
+                                                                      Side side) const {
+  return side == Side::Buy
+             ? std::ranges::lower_bound(bids_, price, std::less{}, &PriceLevel::price)
+             : std::ranges::lower_bound(asks_, price, std::greater{}, &PriceLevel::price);
+}
+
+template <size_t N>
+void OrderBook<N>::remove_order_from_level(PriceLevels& levels, PriceLevels::iterator level_it,
+                                           Order& order) {
+  // Could be O(1) with a doubly linked list, but, Order is already 32 bytes, acceptable for now :/
   const bool is_head = level_it->head == &order;
   const bool is_tail = level_it->tail == &order;
 
@@ -188,47 +255,6 @@ bool OrderBook<N>::reduce_resting(Order& order, Side side, Quantity reduction_qt
       order_it->next = order.next;
     }
   }
-
-  return true;
-}
-
-template <size_t N>
-constexpr const OrderBook<N>::PriceLevel* OrderBook<N>::best_bid_level() const noexcept {
-  return bids_.empty() ? nullptr : &bids_.back();
-}
-
-template <size_t N>
-constexpr const OrderBook<N>::PriceLevel* OrderBook<N>::best_ask_level() const noexcept {
-  return asks_.empty() ? nullptr : &asks_.back();
-}
-
-template <size_t N> bool OrderBook<N>::is_resting(const Order& order, Side side) const noexcept {
-  assert(side != Side::None && "side must not be Side::None");
-
-  const auto& levels = side == Side::Buy ? bids_ : asks_;
-  const auto it =
-      (side == Side::Buy
-           ? std::ranges::lower_bound(levels, order.price, std::less{}, &PriceLevel::price)
-           : std::ranges::lower_bound(levels, order.price, std::greater{}, &PriceLevel::price));
-
-  // Check a level at given order price exists
-  const bool level_exists = it != levels.end() && it->price == order.price;
-  if (!level_exists)
-    return false;
-
-  // Check if order exists at existing price level
-  Order* list_it = it->head;
-  while (list_it) {
-    if (list_it == &order)
-      return true; // found order
-    list_it = list_it->next;
-  }
-
-  return false;
-}
-
-template <size_t N> bool OrderBook<N>::is_resting_anywhere(const Order& order) const noexcept {
-  return is_resting(order, Side::Buy) || is_resting(order, Side::Sell);
 }
 
 static_assert(!std::is_copy_constructible_v<OrderBook<1>>, "OrderBook must not be copied.");
