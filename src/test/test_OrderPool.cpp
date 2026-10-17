@@ -62,7 +62,7 @@ TEST(OrderPoolTest, AllocatedOrderIsEmpty) {
   order->id = 1;
   order->next = order;
   order->price = 10;
-  order->qty = 100;
+  order->remaining_qty = 100;
 
   // Give back to pool
   pool.deallocate(*order);

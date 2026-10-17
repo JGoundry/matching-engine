@@ -14,13 +14,17 @@
  *
  * Construct and preallocate this type before routing commands to it. Calls to
  * `process()` must be serialized by its owning shard or worker thread.
+ * 
+ * @todo Emit executions.
  */
 class MatchingEngine final {
 private:
   struct IndexEntry final {
     Order& order;
-    Side side; //< Kept of the `Order` to keep at 32 bytes
+    Side side; //< Stored in index to keep `Order` at 32 bytes
   };
+
+  /// @todo Benchmark different map implementations.
   using OrderIndex = std::unordered_map<OrderId, IndexEntry>;
   OrderBook<10'000> book_;
   OrderPool<20'000> pool_;

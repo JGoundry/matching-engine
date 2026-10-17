@@ -13,7 +13,7 @@
  */
 struct alignas(32) Order final {
   OrderId id;
-  Quantity qty;
+  Quantity remaining_qty;
   Price price;
   Order *next;
   bool operator==(const Order &) const = default;

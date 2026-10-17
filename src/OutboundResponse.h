@@ -2,6 +2,8 @@
 
 /**
  * @brief Response returned from `MatchingEngine` on receiving `InboundCommand`.
- * @todo Implement `OutboundResponse`.
  */
-struct OutboundResponse {};
+enum class OutboundResponse : std::uint8_t {
+    Accepted,
+    Rejected
+};
