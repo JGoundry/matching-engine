@@ -5,6 +5,8 @@
 #include <algorithm>
 #include <cassert>
 #include <cstddef>
+#include <limits>
+#include <ranges>
 #include <type_traits>
 #include <vector>
 
@@ -48,11 +50,12 @@ public:
   OrderBook& operator=(OrderBook&&) = delete;
 
   /// @brief Attempts to append an order to its side's FIFO price level queue.
+  /// @pre `side` is not Side::None
   /// @pre `order.remaining_qty > 0`.
   /// @pre `order` is not resting in this book already.
-  /// @pre `side` is not Side::None
-  /// @returns true if `order` was linked into the book; false only if its
-  /// price has no existing level on `side` and that side has reached capacity.
+  /// @returns true if `order` was linked. Returns false if its price has no
+  /// existing level and that side is at capacity, or if adding it would
+  /// overflow the existing level's aggregate quantity.
   [[nodiscard]] bool try_add_resting(Order& order, Side side);
 
   /// @brief Reduces an order's remaining quantity.
@@ -77,15 +80,18 @@ public:
   /// @note The returned pointer is valid until the next non-const operation.
   [[nodiscard]] constexpr const PriceLevel* best_ask_level() const noexcept;
 
+  /// @pre `aggressor_side` is not Side::None
   /// @returns The highest priority order at the best opposite side level, or nullptr if
   /// the opposite side is empty.
-  [[nodiscard]] Order* best_opposite_order(Side aggressor_side) const noexcept;
+  [[nodiscard]] const Order* best_opposite_order(Side aggressor_side) const noexcept;
 
+  /// @pre `aggressor_side` is not Side::None
   /// @returns true if `limit_price` crosses the best opposite side price.
   [[nodiscard]] constexpr bool is_spread_crossed(Price limit_price,
                                                  Side aggressor_side) const noexcept;
 
   /// @brief Checks whether an immediately executable quantity exists.
+  /// @pre `aggressor_side` is not Side::None
   /// @pre `required_qty > 0`.
   /// @returns true if `required_qty` can execute at prices no worse than
   /// `limit_price`.
@@ -125,6 +131,10 @@ template <size_t N> bool OrderBook<N>::try_add_resting(Order& order, Side side) 
   const bool level_exists = (level_it != levels.end() && level_it->price == order.price);
 
   if (!level_exists && levels.size() == N)
+    return false;
+
+  if (level_exists &&
+      order.remaining_qty > std::numeric_limits<Quantity>::max() - level_it->remaining_qty)
     return false;
 
   order.next = nullptr;
@@ -181,6 +191,8 @@ template <size_t N> void OrderBook<N>::remove_resting(Order& order, Side side) {
   const auto level_it = find_level_it(order.price, side);
   assert(level_it != levels.end() && level_it->price == order.price);
 
+  level_it->remaining_qty -= order.remaining_qty;
+
   remove_order_from_level(levels, level_it, order);
 }
 
@@ -194,10 +206,51 @@ constexpr const OrderBook<N>::PriceLevel* OrderBook<N>::best_ask_level() const n
   return asks_.empty() ? nullptr : &asks_.back();
 }
 
+template <size_t N>
+const Order* OrderBook<N>::best_opposite_order(Side aggressor_side) const noexcept {
+  assert(aggressor_side != Side::None && "aggressor_side must not be Side::None");
+  const auto& levels = (aggressor_side == Side::Buy ? asks_ : bids_);
+  return levels.empty() ? nullptr : levels.back().head;
+}
+
+template <size_t N>
+constexpr bool OrderBook<N>::is_spread_crossed(Price limit_price,
+                                               Side aggressor_side) const noexcept {
+  const Order* order = best_opposite_order(aggressor_side);
+  if (!order)
+    return false;
+  return (aggressor_side == Side::Buy ? limit_price >= order->price : limit_price <= order->price);
+}
+
+template <size_t N>
+bool OrderBook<N>::can_fully_execute(Price limit_price, Side aggressor_side,
+                                     Quantity required_qty) const noexcept {
+  assert(aggressor_side != Side::None && "aggressor_side must not be Side::None");
+  assert(required_qty > 0 && "required_qty must be greater than zero");
+
+  const auto& opposite_levels = (aggressor_side == Side::Buy ? asks_ : bids_);
+
+  for (const PriceLevel& opposite_level : opposite_levels | std::views::reverse) {
+    const bool limit_price_crosses_price_level =
+        (aggressor_side == Side::Buy ? limit_price >= opposite_level.price
+                                     : limit_price <= opposite_level.price);
+
+    if (!limit_price_crosses_price_level)
+      break;
+
+    if (opposite_level.remaining_qty >= required_qty)
+      return true; // Order can fully fill
+
+    required_qty -= opposite_level.remaining_qty;
+  }
+
+  return false;
+}
+
 template <size_t N> bool OrderBook<N>::is_resting(const Order& order, Side side) const noexcept {
   assert(side != Side::None && "side must not be Side::None");
 
-  const auto& levels = side == Side::Buy ? bids_ : asks_;
+  const auto& levels = (side == Side::Buy ? bids_ : asks_);
   const auto level_it = find_level_it(order.price, side);
 
   // Check a level at given order price exists

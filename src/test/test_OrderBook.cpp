@@ -194,6 +194,26 @@ TEST_P(OrderBookAddRestingSideTest, RejectsOrderWhenPriceLevelDoesNotExistAndAtC
   ASSERT_FALSE(book.is_resting(second_order, side)) << "rejected order should not be in book";
 }
 
+TEST_P(OrderBookAddRestingSideTest, RejectsOrderWhenQtyWouldOverflowLevelQty) {
+  OrderBook<1> book;
+  const Side side = GetParam();
+  const auto max_qty = std::numeric_limits<Quantity>::max();
+  Order first_order = create_order(0, 5, max_qty);
+  Order second_order = create_order(1, 5, 1);
+  Order second_order_copy = create_order(1, 5, 1);
+
+  ASSERT_TRUE(book.try_add_resting(first_order, side));
+  ASSERT_FALSE(book.try_add_resting(second_order, side))
+      << "book should reject order when it would overflow level quantity";
+
+  ASSERT_EQ(second_order, second_order_copy) << "book should not mutate rejected order";
+  ASSERT_FALSE(book.is_resting(second_order, side)) << "rejected order should not be in book";
+
+  const auto* level = best_level(book, side);
+  ASSERT_THAT(level, ::testing::NotNull());
+  ASSERT_EQ(level->remaining_qty, max_qty);
+}
+
 TEST_P(OrderBookAddRestingSideTest, BookFollowsPricePriority) {
   OrderBook<4> book;
 
