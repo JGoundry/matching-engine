@@ -104,6 +104,11 @@ private:
   void remove_order_from_level(PriceLevels& levels, PriceLevels::iterator level_it, Order& order);
 };
 
+static_assert(!std::is_copy_constructible_v<OrderBook<1>>, "OrderBook must not be copied.");
+static_assert(!std::is_copy_assignable_v<OrderBook<1>>, "OrderBook must not be copied.");
+static_assert(!std::is_move_assignable_v<OrderBook<1>>, "OrderBook must not be moved.");
+static_assert(!std::is_move_constructible_v<OrderBook<1>>, "OrderBook must not be moved.");
+
 template <size_t N> constexpr OrderBook<N>::OrderBook() {
   asks_.reserve(N);
   bids_.reserve(N);
@@ -142,10 +147,10 @@ template <size_t N> bool OrderBook<N>::try_add_resting(Order& order, Side side) 
 /// @note Removes the containing price level if `order` was its final member.
 template <size_t N>
 bool OrderBook<N>::reduce_resting(Order& order, Side side, Quantity reduction_qty) {
-  assert(is_resting(order, side) && "order to be reduced must be resting in given side");
   assert(reduction_qty > 0 && "reduction_qty must be greater than zero");
   assert(order.remaining_qty >= reduction_qty &&
          "order.remaining_qty must be greater than or equal to reduction amount");
+  assert(is_resting(order, side) && "order to be reduced must be resting in given side");
 
   // Find level
   auto& levels = (side == Side::Buy ? bids_ : asks_);
@@ -234,6 +239,8 @@ template <size_t N>
 void OrderBook<N>::remove_order_from_level(PriceLevels& levels, PriceLevels::iterator level_it,
                                            Order& order) {
   // Could be O(1) with a doubly linked list, but, Order is already 32 bytes, acceptable for now :/
+  // Orders are also contigous in memory, see OrderPool, so **should** have decent spatial and
+  // temporal locality needs profiling.
   const bool is_head = level_it->head == &order;
   const bool is_tail = level_it->tail == &order;
 
@@ -256,8 +263,3 @@ void OrderBook<N>::remove_order_from_level(PriceLevels& levels, PriceLevels::ite
     }
   }
 }
-
-static_assert(!std::is_copy_constructible_v<OrderBook<1>>, "OrderBook must not be copied.");
-static_assert(!std::is_copy_assignable_v<OrderBook<1>>, "OrderBook must not be copied.");
-static_assert(!std::is_move_assignable_v<OrderBook<1>>, "OrderBook must not be moved.");
-static_assert(!std::is_move_constructible_v<OrderBook<1>>, "OrderBook must not be moved.");
