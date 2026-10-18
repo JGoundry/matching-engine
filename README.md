@@ -10,6 +10,26 @@ stores bids and asks in sorted price levels, with orders queued FIFO at each
 level. The intended engine processes one book's commands serially on a single
 worker.
 
+## Build and test
+
+Requires a C++23 compiler, CMake 3.25 or newer, Ninja, and vcpkg with
+`VCPKG_ROOT` set. The supplied CMake presets target Linux x64; other platforms
+may work, but are not configured here.
+
+Run the debug workflow to configure, build, and test:
+
+```sh
+cmake --workflow --preset ci-debug-ninja-linux-x64
+```
+
+Or run each step separately:
+
+```sh
+cmake --preset debug-ninja-linux-x64
+cmake --build --preset debug-ninja-linux-x64
+ctest --preset debug-ninja-linux-x64
+```
+
 ## Architecture
 
 ```text
@@ -20,10 +40,11 @@ InboundCommand -> MatchingEngine -> OrderBook
                               `-> Order and execution events (TODO)
 ```
 
-Each `MatchingEngine` owns one book, one preallocatd order pool, and an
-order ID index for lookup. The book links orders but does not manage their
-lifetime, that responsibility is on the matching engine. A shared lock-free
-queue may be added later for command ingress.
+Each `MatchingEngine` owns one book, one preallocated order pool, and an
+order ID index for lookup. The pool keeps an allocated `Order` at a stable
+address until it is returned. `OrderBook` links orders but does not manage
+their lifetime; the matching engine must unlink an order before returning it
+to the pool. A shared lock-free queue may be added later for command ingress.
 
 ## Design choices
 
@@ -32,19 +53,19 @@ level is at the back on both sides. Best-level lookup is O(1); binary search
 finds an existing level in O(log L), where L is the number of levels. Adding a
 new level shifts entries and is O(L).
 
-Orders at a level form an intrusive singly linked FIFO queue. Therefore,
-cancelling an order other than the head takes O(Q) to find its predecessor,
-where Q is the queue length. This choice was made to keep `Order` at 32-bytes;
-this decision may change later after benchmarking.
+Orders at a level form an intrusive singly linked FIFO queue. This keeps
+`Order` at 32 bytes, but cancelling an order other than the head takes O(Q) to
+find its predecessor, where Q is the queue length. This trade-off may be revisited
+after benchmarking.
 
 `Order` and `PriceLevel` are 32-byte aligned. The layout is intended to fit two
 objects on a standard 64-byte cache line; that is an initial design choice,
 not a measured performance result.
 
-20,000 orders and 10,000 price levels per side were used as placeholders; they
-aren't based on measured order flow. The pool preallocates its orders at
-construction and reuses freed orders LIFO; the book reserves space for its
-levels and refuses a new, distinct level when that side is full. 
+The capacities of 20,000 orders and 10,000 price levels per side are
+placeholders, not values derived from measured order flow. The pool preallocates
+its orders at construction and reuses freed orders LIFO; the book reserves
+space for its levels and refuses a new, distinct level when that side is full.
 
 Prices and quantities are unsigned 64-bit integers. Prices are in ticks, not
 floating point. The engine still needs command-boundary validation and defined
